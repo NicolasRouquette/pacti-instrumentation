@@ -1,3 +1,4 @@
 .pdm-python
 .history
-
+.vscode
+__pycache__
