@@ -154,20 +154,20 @@ class PolyhedralTermListSize:
 
 
 class TermListWrapper:
-    def __init__(self, fn: Callable[..., PolyhedralTermList]):
+    def __init__(self, fn: Callable[..., bool]):
         self.fn = fn
         self.counter: int = 0
         self.min_size: PolyhedralTermListSize = PolyhedralTermListSize(termlist=None, max_values=True)
         self.max_size: PolyhedralTermListSize = PolyhedralTermListSize(termlist=None, max_values=False)
 
-    def __call__(self, *args: Tuple[PolyhedralTermList], **kwargs: Dict[str, Any]) -> PolyhedralTermList:
+    def __call__(self, instance: PolyhedralTermList, *args: Tuple, **kwargs: Dict[str, Any]) -> bool:
         self.counter += 1
 
         # Call the original method to get the resulting term list
-        result = self.fn(*args, **kwargs)
+        result = self.fn(instance, *args, **kwargs)
 
         # Calculate the size of the input termlist
-        input_size = PolyhedralTermListSize(termlist=args[0])
+        input_size = PolyhedralTermListSize(termlist=instance)
 
         # Update the min/max polyhedral termlist size if necessary
         self.min_size = min(self.min_size, input_size)
@@ -177,13 +177,25 @@ class TermListWrapper:
         return result
 
 
-def termlist_statistics_decorator(fn: Callable[..., PolyhedralTermList]) -> TermListWrapper:
+def termlist_statistics_decorator(fn: Callable[..., bool]) -> Callable[..., bool]:
     """
     A decorator to gather statistics about PolyhedralTermList operations.
     It keeps track of the number of times the decorated function is called,
     and updates the minimum and maximum sizes of input term lists.
     """
-    return TermListWrapper(fn)
+
+    wrapper = TermListWrapper(fn)
+
+    def wrapped_fn(
+        instance: PolyhedralTermList,
+        *args: Tuple,
+        **kwargs: Dict[str, Any],
+    ) -> bool:
+        return wrapper(instance, *args, **kwargs)
+
+    # Attach the 'wrapper' attribute to the 'wrapped_fn'
+    setattr(wrapped_fn, "wrapper", wrapper)
+    return wrapped_fn
 
 
 PolyhedralTermList.contains_behavior = termlist_statistics_decorator(PolyhedralTermList.contains_behavior)
@@ -242,23 +254,23 @@ class PolyhedralContractCompoundSize:
 
 
 class CompoundContractWrapper:
-    def __init__(self, fn: Callable[..., PolyhedralContract]):
+    def __init__(self, fn: Callable[..., PolyhedralContractCompound]):
         self.fn = fn
         self.counter: int = 0
         self.min_size: PolyhedralContractCompoundSize = PolyhedralContractCompoundSize(contract=None, max_values=True)
         self.max_size: PolyhedralContractCompoundSize = PolyhedralContractCompoundSize(contract=None, max_values=False)
 
     def __call__(
-        self, *args: Tuple[PolyhedralContractCompound, PolyhedralContractCompound], **kwargs: Dict[str, Any]
+        self, instance: PolyhedralContractCompound, *args: Tuple[PolyhedralContractCompound], **kwargs: Dict[str, Any]
     ) -> PolyhedralContractCompound:
         self.counter += 1
 
         # Call the original method to get the resulting contract
-        result_contract = self.fn(*args, **kwargs)
+        result_contract = self.fn(instance, *args, **kwargs)
 
         # Calculate the size of the input contracts and the result contract
-        input_size1 = PolyhedralContractCompoundSize(contract=args[0])
-        input_size2 = PolyhedralContractCompoundSize(contract=args[1])
+        input_size1 = PolyhedralContractCompoundSize(contract=instance)
+        input_size2 = PolyhedralContractCompoundSize(contract=args[0])
         result_size = PolyhedralContractCompoundSize(contract=result_contract)
 
         # Update the min/max polyhedral contract size if necessary
@@ -269,13 +281,27 @@ class CompoundContractWrapper:
         return result_contract
 
 
-def compound_contract_statistics_decorator(fn: Callable[..., PolyhedralContractCompound]) -> CompoundContractWrapper:
+def compound_contract_statistics_decorator(
+    fn: Callable[..., PolyhedralContractCompound]
+) -> Callable[..., PolyhedralContractCompound]:
     """
     A decorator to gather statistics about PolyhedralTermList operations.
     It keeps track of the number of times the decorated function is called,
     and updates the minimum and maximum sizes of input term lists.
     """
-    return CompoundContractWrapper(fn)
+
+    wrapper = CompoundContractWrapper(fn)
+
+    def wrapped_fn(
+        instance: PolyhedralContractCompound,
+        *args: Tuple[PolyhedralContractCompound],
+        **kwargs: Dict[str, Any],
+    ) -> PolyhedralContractCompound:
+        return wrapper(instance, *args, **kwargs)
+
+    # Attach the 'wrapper' attribute to the 'wrapped_fn'
+    setattr(wrapped_fn, "wrapper", wrapper)
+    return wrapped_fn
 
 
 PolyhedralContractCompound.merge = compound_contract_statistics_decorator(PolyhedralContractCompound.merge)
@@ -301,8 +327,8 @@ class PactiInstrumentationData:
     contains_behavior_min_size: PolyhedralTermListSize = dataclasses.field(
         default_factory=lambda: PolyhedralTermListSize(termlist=None, max_values=True)
     )
-    compound_merge_min_size: PolyhedralTermListSize = dataclasses.field(
-        default_factory=lambda: PolyhedralTermListSize(termlist=None, max_values=True)
+    compound_merge_min_size: PolyhedralContractCompoundSize = dataclasses.field(
+        default_factory=lambda: PolyhedralContractCompoundSize(contract=None, max_values=True)
     )
 
     compose_max_size: PolyhedralContractSize = dataclasses.field(
@@ -317,8 +343,8 @@ class PactiInstrumentationData:
     contains_behavior_max_size: PolyhedralTermListSize = dataclasses.field(
         default_factory=lambda: PolyhedralTermListSize(termlist=None, max_values=False)
     )
-    compound_merge_max_size: PolyhedralTermListSize = dataclasses.field(
-        default_factory=lambda: PolyhedralTermListSize(termlist=None, max_values=False)
+    compound_merge_max_size: PolyhedralContractCompoundSize = dataclasses.field(
+        default_factory=lambda: PolyhedralContractCompoundSize(contract=None, max_values=False)
     )
 
     def reset(self) -> None:
@@ -335,27 +361,27 @@ class PactiInstrumentationData:
         self.merge_max_size = PolyhedralContractSize(contract=None, max_values=False)
         self.contains_behavior_min_size = PolyhedralTermListSize(termlist=None, max_values=True)
         self.contains_behavior_max_size = PolyhedralTermListSize(termlist=None, max_values=False)
-        self.compound_merge_min_size = PolyhedralTermListSize(termlist=None, max_values=True)
-        self.compound_merge_max_size = PolyhedralTermListSize(termlist=None, max_values=False)
+        self.compound_merge_min_size = PolyhedralContractCompoundSize(contract=None, max_values=True)
+        self.compound_merge_max_size = PolyhedralContractCompoundSize(contract=None, max_values=False)
 
     def update_counts(self) -> "PactiInstrumentationData":
         self.compose_count = PolyhedralContract.compose.counter
         self.quotient_count = PolyhedralContract.quotient.counter
         self.merge_count = PolyhedralContract.merge.counter
-        self.contains_behavior_count = PolyhedralTermList.contains_behavior.counter
-        self.compound_merge_count = PolyhedralContractCompound.merge.counter
+        self.contains_behavior_count = PolyhedralTermList.contains_behavior.wrapper.counter
+        self.compound_merge_count = PolyhedralContractCompound.merge.wrapper.counter
 
         self.compose_min_size = PolyhedralContract.compose.min_size
         self.quotient_min_size = PolyhedralContract.quotient.min_size
         self.merge_min_size = PolyhedralContract.merge.min_size
-        self.contains_behavior_min_size = PolyhedralTermList.contains_behavior.min_size
-        self.compound_merge_min_size = PolyhedralContractCompound.merge.min_size
+        self.contains_behavior_min_size = PolyhedralTermList.contains_behavior.wrapper.min_size
+        self.compound_merge_min_size = PolyhedralContractCompound.merge.wrapper.min_size
 
         self.compose_max_size = PolyhedralContract.compose.max_size
         self.quotient_max_size = PolyhedralContract.quotient.max_size
         self.merge_max_size = PolyhedralContract.merge.max_size
-        self.contains_behavior_max_size = PolyhedralTermList.contains_behavior.max_size
-        self.compound_merge_max_size = PolyhedralContractCompound.merge.max_size
+        self.contains_behavior_max_size = PolyhedralTermList.contains_behavior.wrapper.max_size
+        self.compound_merge_max_size = PolyhedralContractCompound.merge.wrapper.max_size
 
         return self
 
@@ -384,8 +410,8 @@ class PactiInstrumentationData:
     def __str__(self) -> str:
         def operation_msg(
             operation_count: int,
-            min_size: Union[PolyhedralContractSize, PolyhedralTermListSize],
-            max_size: Union[PolyhedralContractSize, PolyhedralTermListSize],
+            min_size: Union[PolyhedralContractSize, PolyhedralTermListSize, PolyhedralContractCompoundSize],
+            max_size: Union[PolyhedralContractSize, PolyhedralTermListSize, PolyhedralContractCompoundSize],
             operation_name: str,
         ) -> str:
             if operation_count == 0:
@@ -460,8 +486,8 @@ class PactiInstrumentationSummary:
     contains_behavior_min_size: PolyhedralTermListSize = dataclasses.field(
         default_factory=lambda: PolyhedralTermListSize(termlist=None, max_values=True)
     )
-    compound_merge_min_size: PolyhedralTermListSize = dataclasses.field(
-        default_factory=lambda: PolyhedralTermListSize(termlist=None, max_values=True)
+    compound_merge_min_size: PolyhedralContractCompoundSize = dataclasses.field(
+        default_factory=lambda: PolyhedralContractCompoundSize(contract=None, max_values=True)
     )
 
     compose_max_size: PolyhedralContractSize = dataclasses.field(
@@ -476,9 +502,49 @@ class PactiInstrumentationSummary:
     contains_behavior_max_size: PolyhedralTermListSize = dataclasses.field(
         default_factory=lambda: PolyhedralTermListSize(termlist=None, max_values=False)
     )
-    compound_merge_max_size: PolyhedralTermListSize = dataclasses.field(
-        default_factory=lambda: PolyhedralTermListSize(termlist=None, max_values=False)
+    compound_merge_max_size: PolyhedralContractCompoundSize = dataclasses.field(
+        default_factory=lambda: PolyhedralContractCompoundSize(contract=None, max_values=False)
     )
+
+    def __add__(self, other: "PactiInstrumentationSummary") -> "PactiInstrumentationSummary":
+        stats = PactiInstrumentationSummary()
+        stats.min_compose = min(self.min_compose, other.min_compose)
+        stats.min_quotient = min(self.min_quotient, other.min_quotient)
+        stats.min_merge = min(self.min_merge, other.min_merge)
+        stats.min_contains_behavior = min(self.min_contains_behavior, other.min_contains_behavior)
+        stats.min_compound_merge = min(self.min_compound_merge, other.min_compound_merge)
+
+        stats.max_compose = max(self.max_compose, other.max_compose)
+        stats.max_quotient = max(self.max_quotient, other.max_quotient)
+        stats.max_merge = max(self.max_merge, other.max_merge)
+        stats.max_contains_behavior = max(self.max_contains_behavior, other.max_contains_behavior)
+        stats.max_compound_merge = max(self.max_compound_merge, other.max_compound_merge)
+
+        stats.total_compose = self.total_compose + other.total_compose
+        stats.total_quotient = self.total_quotient + other.total_quotient
+        stats.total_merge = self.total_merge + other.total_merge
+        stats.total_contains_behavior = self.total_contains_behavior + other.total_contains_behavior
+        stats.total_compound_merge = self.total_compound_merge + other.total_compound_merge
+
+        stats.avg_compose = (self.avg_compose + other.avg_compose) / 2
+        stats.avg_quotient = (self.avg_quotient + other.avg_quotient) / 2
+        stats.avg_merge = (self.avg_merge + other.avg_merge) / 2
+        stats.avg_contains_behavior = (self.avg_contains_behavior + other.avg_contains_behavior) / 2
+        stats.avg_compound_merge = (self.avg_compound_merge + other.avg_compound_merge) / 2
+
+        stats.compose_min_size = min(self.compose_min_size, other.compose_min_size)
+        stats.quotient_min_size = min(self.quotient_min_size, other.quotient_min_size)
+        stats.merge_min_size = min(self.merge_min_size, other.merge_min_size)
+        stats.contains_behavior_min_size = min(self.contains_behavior_min_size, other.contains_behavior_min_size)
+        stats.compound_merge_min_size = min(self.compound_merge_min_size, other.compound_merge_min_size)
+
+        stats.compose_max_size = max(self.compose_max_size, other.compose_max_size)
+        stats.quotient_max_size = max(self.quotient_max_size, other.quotient_max_size)
+        stats.merge_max_size = max(self.merge_max_size, other.merge_max_size)
+        stats.contains_behavior_max_size = max(self.contains_behavior_max_size, other.contains_behavior_max_size)
+        stats.compound_merge_max_size = max(self.compound_merge_max_size, other.compound_merge_max_size)
+
+        return stats
 
     def stats(self) -> str:
         def operation_stats(
@@ -487,8 +553,8 @@ class PactiInstrumentationSummary:
             max_count: int,
             avg_count: float,
             total_count: int,
-            min_size: Union[PolyhedralContractSize, PolyhedralTermListSize],
-            max_size: Union[PolyhedralContractSize, PolyhedralTermListSize],
+            min_size: Union[PolyhedralContractSize, PolyhedralTermListSize | PolyhedralContractCompoundSize],
+            max_size: Union[PolyhedralContractSize, PolyhedralTermListSize | PolyhedralContractCompoundSize],
         ) -> str:
             if total_count == 0:
                 return f"no {operation_name} operations\n"
@@ -498,8 +564,7 @@ class PactiInstrumentationSummary:
                     f" (min: {min_count}"
                     f", max: {max_count}"
                     f", avg: {avg_count}"
-                    f", total: {total_count})\n"
-                    + f"min/max {operation_name} contract size: {min_size}/{max_size}\n"
+                    f", total: {total_count})\n" + f"min/max {operation_name} contract size: {min_size}/{max_size}\n"
                 )
 
         compose_stats = operation_stats(
@@ -602,7 +667,7 @@ def summarize_instrumentation_data(counts: List[PactiInstrumentationData]) -> Pa
     stats.compose_max_size = max(count.compose_max_size for count in counts)
     stats.quotient_max_size = max(count.quotient_max_size for count in counts)
     stats.merge_max_size = max(count.merge_max_size for count in counts)
-    stats.contains_behavior_max_size = max(count.contains_behavior_min_size for count in counts)
-    stats.compound_merge_max_size = max(count.compound_merge_min_size for count in counts)
+    stats.contains_behavior_max_size = max(count.contains_behavior_max_size for count in counts)
+    stats.compound_merge_max_size = max(count.compound_merge_max_size for count in counts)
 
     return stats
