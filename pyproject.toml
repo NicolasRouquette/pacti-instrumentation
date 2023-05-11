@@ -27,7 +27,7 @@ requires-python = ">=3.8, <3.12"
 
 [tool.pdm]
 package-dir = "src"
-version = { source = "file", path = "src/pacti/instrumentation/__version__.py" }
+version = { source = "file", path = "src/pacti_instrumentation/__version__.py" }
 
 [tool.pdm.build]
 package-dir = "src"
