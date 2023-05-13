@@ -85,6 +85,10 @@ class ContractWrapper:
         # Return the composed contract
         return result_contract
 
+    def reset(self) -> None:
+        self.counter = 0
+        self.min_size = PolyhedralContractSize(contract=None, max_values=True)
+        self.max_size = PolyhedralContractSize(contract=None, max_values=False)
 
 def contract_statistics_decorator(
     fn: Callable[..., PolyhedralContract]
@@ -189,6 +193,10 @@ class TermListWrapper:
         # Return the result
         return result
 
+    def reset(self) -> None:
+        self.counter = 0
+        self.min_size = PolyhedralTermListSize(termlist=None, max_values=True)
+        self.max_size = PolyhedralTermListSize(termlist=None, max_values=False)
 
 def termlist_statistics_decorator(fn: Callable[..., bool]) -> Callable[..., bool]:
     """
@@ -292,6 +300,11 @@ class CompoundContractWrapper:
         # Return the composed contract
         return result_contract
 
+    def reset(self) -> None:
+        self.counter = 0
+        self.min_size = PolyhedralContractCompoundSize(contract=None, max_values=True)
+        self.max_size = PolyhedralContractCompoundSize(contract=None, max_values=False)
+
 
 def compound_contract_statistics_decorator(
     fn: Callable[..., PolyhedralContractCompound]
@@ -382,19 +395,23 @@ class PactiInstrumentationData:
         self.merge_count = PolyhedralContract.merge.wrapper.counter
         self.contains_behavior_count = PolyhedralTermList.contains_behavior.wrapper.counter
         self.compound_merge_count = PolyhedralContractCompound.merge.wrapper.counter
-
         self.compose_min_size = PolyhedralContract.compose.wrapper.min_size
         self.quotient_min_size = PolyhedralContract.quotient.wrapper.min_size
         self.merge_min_size = PolyhedralContract.merge.wrapper.min_size
         self.contains_behavior_min_size = PolyhedralTermList.contains_behavior.wrapper.min_size
         self.compound_merge_min_size = PolyhedralContractCompound.merge.wrapper.min_size
-
         self.compose_max_size = PolyhedralContract.compose.wrapper.max_size
         self.quotient_max_size = PolyhedralContract.quotient.wrapper.max_size
         self.merge_max_size = PolyhedralContract.merge.wrapper.max_size
         self.contains_behavior_max_size = PolyhedralTermList.contains_behavior.wrapper.max_size
         self.compound_merge_max_size = PolyhedralContractCompound.merge.wrapper.max_size
 
+        PolyhedralContract.compose.wrapper.reset()
+        PolyhedralContract.quotient.wrapper.reset()
+        PolyhedralContract.merge.wrapper.reset()
+        PolyhedralTermList.contains_behavior.wrapper.reset()
+        PolyhedralContractCompound.merge.wrapper.reset()
+        
         return self
 
     def __add__(self, other: "PactiInstrumentationData") -> "PactiInstrumentationData":
