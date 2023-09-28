@@ -14,7 +14,7 @@ classifiers = [
 keywords = ["instrumentation", "cpu utilization"]
 dynamic = ["version"]
 dependencies = [
-    "Pacti @ git+https://github.com/pacti-org/pacti.git@28c6c18",
+    "Pacti @ git+https://github.com/pacti-org/pacti.git@8ba0e0c",
     "ipykernel>=6.22.0",
     "notebook>=6.5.3",
     "p-tqdm>=1.4.0",
