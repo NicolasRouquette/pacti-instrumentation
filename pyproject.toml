@@ -14,13 +14,15 @@ classifiers = [
 keywords = ["instrumentation", "cpu utilization"]
 dynamic = ["version"]
 dependencies = [
-    "Pacti @ git+https://github.com/pacti-org/pacti.git@8ba0e0c",
+    "Pacti @ git+https://github.com/pacti-org/pacti.git@28c6c18",
     "ipykernel>=6.22.0",
     "notebook>=6.5.3",
     "p-tqdm>=1.4.0",
     "py-cpuinfo>=9.0.0",
     "ipywidgets>=8.0.6",
     "mypy>=1.2.0",
+    "duty>=1.0.0",
+    "flake8>=5.0.4",
 ]
 
 requires-python = ">=3.8, <3.12"

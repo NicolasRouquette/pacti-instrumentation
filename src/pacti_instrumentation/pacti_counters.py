@@ -1,5 +1,6 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from pacti.terms.polyhedra import PolyhedralContract, PolyhedralTermList, PolyhedralContractCompound
+from pacti.contracts import PolyhedralIoContract, PolyhedralIoContractCompound
+from pacti.terms.polyhedra import PolyhedralTermList
 from pacti.utils.lists import list_union
 
 import sys
@@ -11,7 +12,7 @@ import dataclasses
 @dataclasses.dataclass
 class PolyhedralContractSize:
     """
-    A data class representing the size of a PolyhedralContract.
+    A data class representing the size of a PolyhedralIoContract.
     The size is determined by the number of constraints and variables.
     """
 
@@ -21,7 +22,7 @@ class PolyhedralContractSize:
     # The count of input and output variables.
     variables: int = 0
 
-    def __init__(self, contract: Optional[PolyhedralContract], max_values: bool = False):
+    def __init__(self, contract: Optional[PolyhedralIoContract], max_values: bool = False):
         if max_values:
             self.constraints = sys.maxsize
             self.variables = sys.maxsize
@@ -60,15 +61,15 @@ class PolyhedralContractSize:
 
 
 class ContractWrapper:
-    def __init__(self, fn: Callable[..., PolyhedralContract]):
+    def __init__(self, fn: Callable[..., PolyhedralIoContract]):
         self.fn = fn
         self.counter: int = 0
         self.min_size: PolyhedralContractSize = PolyhedralContractSize(contract=None, max_values=True)
         self.max_size: PolyhedralContractSize = PolyhedralContractSize(contract=None, max_values=False)
 
     def __call__(
-        self, instance: PolyhedralContract, *args: Tuple[PolyhedralContract], **kwargs: Dict[str, Any]
-    ) -> PolyhedralContract:
+        self, instance: PolyhedralIoContract, *args: Tuple[PolyhedralIoContract], **kwargs: Dict[str, Any]
+    ) -> PolyhedralIoContract:
         self.counter += 1
 
         # Call the original method to get the resulting contract
@@ -76,6 +77,9 @@ class ContractWrapper:
 
         # Calculate the size of the input contracts and the result contract
         input_size1 = PolyhedralContractSize(contract=instance)
+        if len(args) != 1:
+            raise ValueError("Expected exactly one positional argument")
+        assert isinstance(args[0], PolyhedralIoContract), "Expected args[0] to be of type PolyhedralIoContract"
         input_size2 = PolyhedralContractSize(contract=args[0])
 
         # Update the min/max polyhedral contract size if necessary
@@ -90,11 +94,12 @@ class ContractWrapper:
         self.min_size = PolyhedralContractSize(contract=None, max_values=True)
         self.max_size = PolyhedralContractSize(contract=None, max_values=False)
 
+
 def contract_statistics_decorator(
-    fn: Callable[..., PolyhedralContract]
-) -> Callable[..., PolyhedralContract]:
+    fn: Callable[..., PolyhedralIoContract]
+) -> Callable[..., PolyhedralIoContract]:
     """
-    A decorator to gather statistics about PolyhedralContract composition operations.
+    A decorator to gather statistics about PolyhedralIoContract composition operations.
     It keeps track of the number of times the decorated function is called,
     and updates the minimum and maximum sizes of input and output contracts.
     """
@@ -102,10 +107,10 @@ def contract_statistics_decorator(
     wrapper = ContractWrapper(fn)
 
     def wrapped_fn(
-        instance: PolyhedralContract,
-        *args: Tuple[PolyhedralContract],
+        instance: PolyhedralIoContract,
+        *args: Tuple[PolyhedralIoContract],
         **kwargs: Dict[str, Any],
-    ) -> PolyhedralContract:
+    ) -> PolyhedralIoContract:
         return wrapper(instance, *args, **kwargs)
 
     # Attach the 'wrapper' attribute to the 'wrapped_fn'
@@ -113,9 +118,9 @@ def contract_statistics_decorator(
     return wrapped_fn
 
 
-PolyhedralContract.compose = contract_statistics_decorator(PolyhedralContract.compose)
-PolyhedralContract.quotient = contract_statistics_decorator(PolyhedralContract.quotient)
-PolyhedralContract.merge = contract_statistics_decorator(PolyhedralContract.merge)
+PolyhedralIoContract.compose = contract_statistics_decorator(PolyhedralIoContract.compose)
+PolyhedralIoContract.quotient = contract_statistics_decorator(PolyhedralIoContract.quotient)
+PolyhedralIoContract.merge = contract_statistics_decorator(PolyhedralIoContract.merge)
 
 
 @functools.total_ordering
@@ -198,6 +203,7 @@ class TermListWrapper:
         self.min_size = PolyhedralTermListSize(termlist=None, max_values=True)
         self.max_size = PolyhedralTermListSize(termlist=None, max_values=False)
 
+
 def termlist_statistics_decorator(fn: Callable[..., bool]) -> Callable[..., bool]:
     """
     A decorator to gather statistics about PolyhedralTermList operations.
@@ -226,7 +232,7 @@ PolyhedralTermList.contains_behavior = termlist_statistics_decorator(PolyhedralT
 @dataclasses.dataclass
 class PolyhedralContractCompoundSize:
     """
-    A data class representing the size of a PolyhedralContract.
+    A data class representing the size of a PolyhedralIoContractCompound.
     The size is determined by the number of constraints and variables.
     """
 
@@ -236,7 +242,7 @@ class PolyhedralContractCompoundSize:
     # The count of input and output variables.
     variables: int = 0
 
-    def __init__(self, contract: Optional[PolyhedralContractCompound], max_values: bool = False):
+    def __init__(self, contract: Optional[PolyhedralIoContractCompound], max_values: bool = False):
         if max_values:
             self.convex_polyhedra_count = sys.maxsize
             self.variables = sys.maxsize
@@ -275,15 +281,15 @@ class PolyhedralContractCompoundSize:
 
 
 class CompoundContractWrapper:
-    def __init__(self, fn: Callable[..., PolyhedralContractCompound]):
+    def __init__(self, fn: Callable[..., PolyhedralIoContractCompound]):
         self.fn = fn
         self.counter: int = 0
         self.min_size: PolyhedralContractCompoundSize = PolyhedralContractCompoundSize(contract=None, max_values=True)
         self.max_size: PolyhedralContractCompoundSize = PolyhedralContractCompoundSize(contract=None, max_values=False)
 
     def __call__(
-        self, instance: PolyhedralContractCompound, *args: Tuple[PolyhedralContractCompound], **kwargs: Dict[str, Any]
-    ) -> PolyhedralContractCompound:
+        self, instance: PolyhedralIoContractCompound, *args: Tuple[PolyhedralIoContractCompound], **kwargs: Dict[str, Any]
+    ) -> PolyhedralIoContractCompound:
         self.counter += 1
 
         # Call the original method to get the resulting contract
@@ -291,6 +297,9 @@ class CompoundContractWrapper:
 
         # Calculate the size of the input contracts and the result contract
         input_size1 = PolyhedralContractCompoundSize(contract=instance)
+        if len(args) != 1:
+            raise ValueError("Expected exactly one positional argument")
+        assert isinstance(args[0], PolyhedralIoContractCompound), "Expected args[0] to be of type PolyhedralIoContractCompound"
         input_size2 = PolyhedralContractCompoundSize(contract=args[0])
 
         # Update the min/max polyhedral contract size if necessary
@@ -307,8 +316,8 @@ class CompoundContractWrapper:
 
 
 def compound_contract_statistics_decorator(
-    fn: Callable[..., PolyhedralContractCompound]
-) -> Callable[..., PolyhedralContractCompound]:
+    fn: Callable[..., PolyhedralIoContractCompound]
+) -> Callable[..., PolyhedralIoContractCompound]:
     """
     A decorator to gather statistics about PolyhedralTermList operations.
     It keeps track of the number of times the decorated function is called,
@@ -318,10 +327,10 @@ def compound_contract_statistics_decorator(
     wrapper = CompoundContractWrapper(fn)
 
     def wrapped_fn(
-        instance: PolyhedralContractCompound,
-        *args: Tuple[PolyhedralContractCompound],
+        instance: PolyhedralIoContractCompound,
+        *args: Tuple[PolyhedralIoContractCompound],
         **kwargs: Dict[str, Any],
-    ) -> PolyhedralContractCompound:
+    ) -> PolyhedralIoContractCompound:
         return wrapper(instance, *args, **kwargs)
 
     # Attach the 'wrapper' attribute to the 'wrapped_fn'
@@ -329,7 +338,7 @@ def compound_contract_statistics_decorator(
     return wrapped_fn
 
 
-PolyhedralContractCompound.merge = compound_contract_statistics_decorator(PolyhedralContractCompound.merge)
+PolyhedralIoContractCompound.merge = compound_contract_statistics_decorator(PolyhedralIoContractCompound.merge)
 
 
 @dataclasses.dataclass
@@ -390,28 +399,28 @@ class PactiInstrumentationData:
         self.compound_merge_max_size = PolyhedralContractCompoundSize(contract=None, max_values=False)
 
     def update_counts(self) -> "PactiInstrumentationData":
-        self.compose_count = PolyhedralContract.compose.wrapper.counter
-        self.quotient_count = PolyhedralContract.quotient.wrapper.counter
-        self.merge_count = PolyhedralContract.merge.wrapper.counter
+        self.compose_count = PolyhedralIoContract.compose.wrapper.counter
+        self.quotient_count = PolyhedralIoContract.quotient.wrapper.counter
+        self.merge_count = PolyhedralIoContract.merge.wrapper.counter
         self.contains_behavior_count = PolyhedralTermList.contains_behavior.wrapper.counter
-        self.compound_merge_count = PolyhedralContractCompound.merge.wrapper.counter
-        self.compose_min_size = PolyhedralContract.compose.wrapper.min_size
-        self.quotient_min_size = PolyhedralContract.quotient.wrapper.min_size
-        self.merge_min_size = PolyhedralContract.merge.wrapper.min_size
+        self.compound_merge_count = PolyhedralIoContractCompound.merge.wrapper.counter
+        self.compose_min_size = PolyhedralIoContract.compose.wrapper.min_size
+        self.quotient_min_size = PolyhedralIoContract.quotient.wrapper.min_size
+        self.merge_min_size = PolyhedralIoContractCompound.merge.wrapper.min_size
         self.contains_behavior_min_size = PolyhedralTermList.contains_behavior.wrapper.min_size
-        self.compound_merge_min_size = PolyhedralContractCompound.merge.wrapper.min_size
-        self.compose_max_size = PolyhedralContract.compose.wrapper.max_size
-        self.quotient_max_size = PolyhedralContract.quotient.wrapper.max_size
-        self.merge_max_size = PolyhedralContract.merge.wrapper.max_size
+        self.compound_merge_min_size = PolyhedralIoContractCompound.merge.wrapper.min_size
+        self.compose_max_size = PolyhedralIoContract.compose.wrapper.max_size
+        self.quotient_max_size = PolyhedralIoContract.quotient.wrapper.max_size
+        self.merge_max_size = PolyhedralIoContract.merge.wrapper.max_size
         self.contains_behavior_max_size = PolyhedralTermList.contains_behavior.wrapper.max_size
-        self.compound_merge_max_size = PolyhedralContractCompound.merge.wrapper.max_size
+        self.compound_merge_max_size = PolyhedralIoContractCompound.merge.wrapper.max_size
 
-        PolyhedralContract.compose.wrapper.reset()
-        PolyhedralContract.quotient.wrapper.reset()
-        PolyhedralContract.merge.wrapper.reset()
+        PolyhedralIoContract.compose.wrapper.reset()
+        PolyhedralIoContract.quotient.wrapper.reset()
+        PolyhedralIoContract.merge.wrapper.reset()
         PolyhedralTermList.contains_behavior.wrapper.reset()
-        PolyhedralContractCompound.merge.wrapper.reset()
-        
+        PolyhedralIoContractCompound.merge.wrapper.reset()
+
         return self
 
     def __add__(self, other: "PactiInstrumentationData") -> "PactiInstrumentationData":
